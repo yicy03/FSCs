@@ -2,130 +2,139 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tsinghua University | Perovskite 3D Network Builder</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tsinghua University | Perovskite 3D Builder</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <style>
-        :root { --ts-purple: #612c82; --panel-bg: rgba(255, 255, 255, 0.95); }
-        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #050505; color: white; }
+        :root { --ts-purple: #612c82; --panel-bg: rgba(255, 255, 255, 0.98); }
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', system-ui, sans-serif; background: #000; color: white; height: 100vh; display: flex; flex-direction: column; }
         
-        /* Tsinghua Branding */
+        /* 头部：针对移动端大幅缩小 */
         #header {
-            position: absolute; top: 0; width: 100%; text-align: center; color: white;
-            padding: 15px 10px; pointer-events: none; z-index: 10;
+            position: absolute; top: 0; width: 100%; text-align: center; 
+            padding: 10px 0; pointer-events: none; z-index: 20;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
         }
-        #header h1 { font-family: "Times New Roman", Times, serif; font-size: 1.8rem; margin: 0; color: var(--ts-purple); text-shadow: 0 0 10px rgba(0,0,0,0.5); }
-        #header p { margin: 5px 0; font-size: 0.8rem; letter-spacing: 1px; text-transform: uppercase; }
+        #header h1 { font-family: "Times New Roman", serif; font-size: 1.4rem; margin: 0; color: #fff; }
+        #header p { margin: 2px 0; font-size: 0.6rem; letter-spacing: 1px; color: #ccc; }
 
-        /* UI Panels Base */
+        /* 3D 容器 */
+        #canvas-container { flex: 1; width: 100%; position: relative; }
+
+        /* 面板基础样式 */
         .panel {
-            position: absolute; background: var(--panel-bg); padding: 15px;
-            border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); z-index: 10; color: #333;
-            transition: all 0.3s ease;
+            background: var(--panel-bg); color: #333;
+            border-radius: 12px; box-shadow: 0 -4px 15px rgba(0,0,0,0.3);
+            z-index: 10; padding: 15px;
         }
-        
-        /* Desktop Layout */
-        #controls { left: 20px; top: 100px; width: 230px; }
-        #info { right: 20px; top: 100px; width: 260px; font-size: 0.9rem; }
 
-        /* Mobile Optimization */
+        /* 桌面端布局：悬浮两侧 */
+        @media (min-width: 769px) {
+            .panel { position: absolute; top: 80px; width: 220px; }
+            #controls { left: 20px; }
+            #info { right: 20px; }
+        }
+
+        /* 移动端布局：固定在底部，平铺不遮挡 */
         @media (max-width: 768px) {
-            #header h1 { font-size: 1.4rem; }
-            #header p { font-size: 0.6rem; }
-
-            .panel {
-                position: absolute;
-                width: calc(50% - 25px) !important; /* 并排显示 */
-                top: auto !important; /* 取消顶部定位 */
-                bottom: 20px !important; /* 统一固定在底部 */
-                max-height: 40vh; /* 限制高度防止遮挡中心 */
-                overflow-y: auto;
-                padding: 10px;
-                font-size: 0.8rem;
-            }
-            #controls { left: 10px !important; }
-            #info { right: 10px !important; }
+            #header h1 { font-size: 1.1rem; }
             
-            h3 { font-size: 0.9rem; margin-bottom: 8px; }
-            .btn { padding: 8px; font-size: 0.75rem; }
-            .slider-group { margin: 8px 0; }
+            #ui-wrapper {
+                display: flex;
+                flex-direction: row;
+                gap: 10px;
+                padding: 10px;
+                background: #1a1a1a; /* 底部工具栏背景 */
+                height: 35vh; /* 占用底部 35% 的高度 */
+                overflow-y: auto;
+            }
+            .panel {
+                position: static !important;
+                flex: 1;
+                height: auto;
+                padding: 10px;
+                font-size: 0.75rem;
+                border-radius: 8px;
+            }
+            h3 { font-size: 0.85rem !important; margin-bottom: 5px !important; }
+            .btn { padding: 6px !important; margin: 5px 0 !important; font-size: 0.7rem !important; }
+            .slider-group { margin: 5px 0 !important; }
         }
 
-        h3 { margin-top: 0; color: var(--ts-purple); border-bottom: 2px solid #ddd; padding-bottom: 5px; }
-        .slider-group { margin: 15px 0; }
-        label { font-size: 0.8rem; font-weight: bold; color: #555; }
+        h3 { margin: 0 0 10px 0; color: var(--ts-purple); border-bottom: 2px solid #eee; padding-bottom: 5px; }
+        .slider-group { margin: 10px 0; }
+        label { font-size: 0.75rem; font-weight: bold; color: #666; display: block; }
         input[type=range] { width: 100%; accent-color: var(--ts-purple); cursor: pointer; }
         
         .btn {
-            display: block; width: 100%; padding: 10px; margin: 10px 0;
+            display: block; width: 100%; padding: 8px; margin: 8px 0;
             background: var(--ts-purple); color: white; border: none;
-            border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.3s;
+            border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s;
         }
-        .btn:hover { background: #4a1d64; }
-        .btn.active { background: #333; border: 2px solid var(--ts-purple); }
+        .btn.active { background: #333; }
 
-        .stat-item { display: flex; justify-content: space-between; margin: 5px 0; font-family: monospace; }
-        .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .stat-item { display: flex; justify-content: space-between; margin: 3px 0; font-family: monospace; }
+        hr { border: 0; border-top: 1px solid #ddd; margin: 8px 0; }
     </style>
 </head>
 <body>
 
     <div id="header">
         <h1>TSINGHUA UNIVERSITY</h1>
-        <p>Perovskite 3D Network & Connectivity Analysis</p>
+        <p>Perovskite 3D Network Analysis</p>
     </div>
 
-    <div id="controls" class="panel">
-        <h3>Supercell Growth</h3>
-        
-        <div class="slider-group">
-            <label>Grid X: <span id="valX">2</span></label>
-            <input type="range" id="sizeX" min="1" max="4" value="2">
-        </div>
-        <div class="slider-group">
-            <label>Grid Y: <span id="valY">2</span></label>
-            <input type="range" id="sizeY" min="1" max="4" value="2">
-        </div>
-        <div class="slider-group">
-            <label>Grid Z: <span id="valZ">2</span></label>
-            <input type="range" id="sizeZ" min="1" max="4" value="2">
+    <div id="canvas-container"></div>
+
+    <div id="ui-wrapper">
+        <div id="controls" class="panel">
+            <h3>Supercell</h3>
+            <div class="slider-group">
+                <label>Grid X: <span id="valX">2</span></label>
+                <input type="range" id="sizeX" min="1" max="4" value="2">
+            </div>
+            <div class="slider-group">
+                <label>Grid Y: <span id="valY">2</span></label>
+                <input type="range" id="sizeY" min="1" max="4" value="2">
+            </div>
+            <div class="slider-group">
+                <label>Grid Z: <span id="valZ">2</span></label>
+                <input type="range" id="sizeZ" min="1" max="4" value="2">
+            </div>
+            <button class="btn" id="explodeBtn">Explode</button>
+            <button class="btn" id="viewModeBtn">Mode: Poly</button>
         </div>
 
-        <button class="btn" id="explodeBtn">Toggle Explode</button>
-        <button class="btn" id="viewModeBtn">View Mode: Polyhedra</button>
-    </div>
-
-    <div id="info" class="panel">
-        <h3>Network Stats</h3>
-        <p>Finite Crystal Formula:</p>
-        <div class="stat-item">A-site: <span id="countA" style="color:#d4af37">8</span></div>
-        <div class="stat-item">B-site: <span id="countB" style="color:#7f8c8d">8</span></div>
-        <div class="stat-item">X-site: <span id="countX" style="color:#9b59b6">24</span></div>
-        <hr>
-        <p style="font-size:0.7rem; color:#666;">Note: Atoms at surface are not fully coordinated.</p>
+        <div id="info" class="panel">
+            <h3>Statistics</h3>
+            <div class="stat-item">A (MA⁺): <span id="countA" style="color:#d4af37">8</span></div>
+            <div class="stat-item">B (Pb²⁺): <span id="countB" style="color:#7f8c8d">8</span></div>
+            <div class="stat-item">X (I⁻): <span id="countX" style="color:#9b59b6">24</span></div>
+            <hr>
+            <p style="font-size:0.65rem; color:#888; margin:0;">Note: Surface atoms are not fully coordinated in finite cells.</p>
+        </div>
     </div>
 
     <script>
-        // Three.js Setup
+        const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x0a0a0a);
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        
+        const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        container.appendChild(renderer.domElement);
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
-        camera.position.set(8, 6, 12);
+        camera.position.set(10, 8, 12);
         controls.update();
 
-        // Lights
-        scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
         const light = new THREE.PointLight(0xffffff, 1);
-        light.position.set(10, 10, 10);
+        light.position.set(15, 15, 15);
         scene.add(light);
 
-        // Core Variables
         const unitSize = 4;
         let supercellGroup = new THREE.Group();
         scene.add(supercellGroup);
@@ -134,12 +143,11 @@
         let isExploded = false;
         let viewMode = 'polyhedra'; 
 
-        // Materials
         const matA = new THREE.MeshPhongMaterial({ color: 0xd4af37 }); 
         const matB = new THREE.MeshPhongMaterial({ color: 0x7f8c8d }); 
         const matX = new THREE.MeshPhongMaterial({ color: 0x9b59b6, transparent: true, opacity: 0.8 }); 
         const matOcta = new THREE.MeshPhongMaterial({ color: 0x9b59b6, transparent: true, opacity: 0.25, side: THREE.DoubleSide });
-        const matWire = new THREE.LineBasicMaterial({ color: 0x333333 });
+        const matWire = new THREE.LineBasicMaterial({ color: 0x444444 });
 
         function createUnitCell(xOffset, yOffset, zOffset) {
             const cellGroup = new THREE.Group();
@@ -147,26 +155,24 @@
 
             const boxGeom = new THREE.BoxGeometry(unitSize, unitSize, unitSize);
             const edges = new THREE.EdgesGeometry(boxGeom);
-            const wire = new THREE.LineSegments(edges, matWire);
-            cellGroup.add(wire);
+            cellGroup.add(new THREE.LineSegments(edges, matWire));
 
-            const b = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 16), matB);
+            const b = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16), matB);
             b.position.set(-unitSize/2, -unitSize/2, -unitSize/2);
             cellGroup.add(b);
 
-            const a = new THREE.Mesh(new THREE.SphereGeometry(0.8, 16, 16), matA);
+            const a = new THREE.Mesh(new THREE.SphereGeometry(0.85, 16, 16), matA);
             a.position.set(0, 0, 0);
             cellGroup.add(a);
 
-            const uniqueX = [[-1,0,0], [0,-1,0], [0,0,-1]];
-            uniqueX.forEach(p => {
-                const x = new THREE.Mesh(new THREE.SphereGeometry(0.25, 16, 16), matX);
+            [[-1,0,0], [0,-1,0], [0,0,-1]].forEach(p => {
+                const x = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 16), matX);
                 x.position.set(p[0]*unitSize/2, p[1]*unitSize/2, p[2]*unitSize/2);
                 cellGroup.add(x);
             });
 
-            const octaGeom = new THREE.OctahedronGeometry(unitSize/2);
-            const octaMesh = new THREE.Mesh(octaGeom, matOcta);
+            const octaMesh = new THREE.Mesh(new THREE.OctahedronGeometry(unitSize/2), matOcta);
+            octaMesh.name = "octa";
             octaMesh.visible = (viewMode === 'polyhedra');
             cellGroup.add(octaMesh);
 
@@ -179,8 +185,7 @@
             for (let x = 0; x < gridX; x++) {
                 for (let y = 0; y < gridY; y++) {
                     for (let z = 0; z < gridZ; z++) {
-                        const cell = createUnitCell(x, y, z);
-                        supercellGroup.add(cell);
+                        supercellGroup.add(createUnitCell(x, y, z));
                     }
                 }
             }
@@ -191,52 +196,37 @@
         }
 
         function updateStats() {
-            const countA = gridX * gridY * gridZ;
-            const countB = countA; 
-            const countX = countA * 3; 
-            document.getElementById('countA').innerText = countA;
-            document.getElementById('countB').innerText = countB;
-            document.getElementById('countX').innerText = countX;
+            document.getElementById('countA').innerText = gridX * gridY * gridZ;
+            document.getElementById('countB').innerText = gridX * gridY * gridZ;
+            document.getElementById('countX').innerText = (gridX * gridY * gridZ) * 3;
         }
 
-        const updateGrid = (axis, val) => {
+        const syncGrid = (axis, val) => {
             if (axis === 'x') gridX = parseInt(val);
             if (axis === 'y') gridY = parseInt(val);
             if (axis === 'z') gridZ = parseInt(val);
             buildSupercell();
         }
 
-        document.getElementById('sizeX').oninput = e => { updateGrid('x', e.target.value); document.getElementById('valX').innerText = e.target.value; }
-        document.getElementById('sizeY').oninput = e => { updateGrid('y', e.target.value); document.getElementById('valY').innerText = e.target.value; }
-        document.getElementById('sizeZ').oninput = e => { updateGrid('z', e.target.value); document.getElementById('valZ').innerText = e.target.value; }
+        document.getElementById('sizeX').oninput = e => { syncGrid('x', e.target.value); document.getElementById('valX').innerText = e.target.value; }
+        document.getElementById('sizeY').oninput = e => { syncGrid('y', e.target.value); document.getElementById('valY').innerText = e.target.value; }
+        document.getElementById('sizeZ').oninput = e => { syncGrid('z', e.target.value); document.getElementById('valZ').innerText = e.target.value; }
 
         document.getElementById('explodeBtn').onclick = function() {
             isExploded = !isExploded;
             this.classList.toggle('active');
             supercellGroup.children.forEach(cell => {
                 const ud = cell.userData;
-                const explodeFactor = isExploded ? 1.5 : 1.0;
-                cell.position.set(
-                    ud.xOffset * unitSize * explodeFactor,
-                    ud.yOffset * unitSize * explodeFactor,
-                    ud.zOffset * unitSize * explodeFactor
-                );
+                const factor = isExploded ? 1.6 : 1.0;
+                cell.position.set(ud.xOffset * unitSize * factor, ud.yOffset * unitSize * factor, ud.zOffset * unitSize * factor);
             });
-            const box = new THREE.Box3().setFromObject(supercellGroup);
-            const center = box.getCenter(new THREE.Vector3());
-            supercellGroup.position.set(0,0,0);
-            supercellGroup.position.sub(center);
         };
 
         document.getElementById('viewModeBtn').onclick = function() {
-            viewMode = (viewMode === 'polyhedra') ? 'ballstick' : 'polyhedra';
-            this.innerText = `View Mode: ${viewMode.charAt(0).toUpperCase() + viewMode.slice(1)}`;
-            supercellGroup.children.forEach(cell => {
-                cell.children.forEach(child => {
-                    if (child.geometry && child.geometry.type === 'OctahedronGeometry') {
-                        child.visible = (viewMode === 'polyhedra');
-                    }
-                });
+            viewMode = (viewMode === 'polyhedra') ? 'ball' : 'polyhedra';
+            this.innerText = `Mode: ${viewMode === 'polyhedra' ? 'Poly' : 'Ball'}`;
+            supercellGroup.traverse(child => {
+                if (child.name === "octa") child.visible = (viewMode === 'polyhedra');
             });
         };
 
@@ -246,9 +236,11 @@
         }
 
         window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+            camera.aspect = w / h;
             camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setSize(w, h);
         });
 
         buildSupercell();
