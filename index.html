@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tsinghua University: Photovoltaics</title>
+    <style>
+        :root { 
+            --tsinghua-purple: #612c82;
+            --bg: #f8f9fa; 
+            --panel: #2d3436; 
+            --ev: #3498db; 
+            --ec: #2ecc71; 
+            --hv: #f1c40f; 
+            --loss: #e67e22; 
+        }
+        body { font-family: -apple-system, 'Segoe UI', sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; margin: 0; padding: 10px; -webkit-user-select: none; }
+        
+        /* Tsinghua Branding Header */
+        .header { width: 100%; max-width: 420px; text-align: center; margin-bottom: 12px; border-bottom: 2px solid var(--tsinghua-purple); padding-bottom: 8px; }
+        .ts-name { font-family: "Times New Roman", Times, serif; font-size: 24px; font-weight: bold; color: var(--tsinghua-purple); letter-spacing: 1.5px; margin: 0; }
+        .sub-title { font-size: 13px; color: #636e72; font-weight: 600; margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+
+        .box { background: #fff; padding: 15px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.08); width: 100%; max-width: 420px; box-sizing: border-box; border: 1px solid #eee; }
+        .stg { position: relative; width: 100%; height: 380px; background: #fff; border: 1px solid #eee; border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
+        
+        /* Physics Elements */
+        .res { position: absolute; width: 35%; border: 2px solid #333; left: 12%; transition: top 0.4s; }
+        #u_r { height: 40px; border-bottom: none; border-radius: 5px 5px 0 0; }
+        #u_w { position: absolute; bottom: 0; width: 100%; height: 0; background: var(--ev); transition: height 0.2s; }
+        #l_r { bottom: 0; height: 50px; border-top: none; background: var(--ev); }
+        .pip { position: absolute; left: 12%; width: 20px; background: rgba(0,0,0,0.03); border-left: 1px dashed #bbb; border-right: 1px dashed #bbb; transition: all 0.4s; }
+        
+        /* Circuit */
+        .wire { position: absolute; background: #444; transition: all 0.4s; }
+        #w_ec { height: 2px; width: 45%; left: 47%; }
+        #w_ev { height: 2px; width: 45%; left: 47%; bottom: 50px; }
+        #w_v { width: 2px; left: 92%; }
+        #b_c { position: absolute; left: 84%; transition: all 0.4s; }
+        #blb { width: 32px; height: 48px; background: #dfe6e9; border: 2px solid #b2bec3; border-radius: 12px 12px 4px 4px; transition: 0.2s; position: relative; }
+        #blb.on { background: #fff176; border-color: #f1c40f; box-shadow: 0 0 20px #f1c40f; }
+
+        /* FX */
+        .loss-tag { position: absolute; color: var(--loss); font-size: 11px; font-weight: bold; animation: fadeUp 1s forwards; z-index: 10; white-space: nowrap; }
+        @keyframes fadeUp { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-40px); } }
+        .pht { position: absolute; width: 3px; height: 40px; background: linear-gradient(to top, transparent, var(--hv)); left: 25%; }
+        .elt { position: absolute; width: 14px; height: 14px; background: var(--ev); border-radius: 50%; left: 25%; transform: translateX(-50%); border: 1px solid rgba(0,0,0,0.2); }
+
+        /* UI */
+        .ctrl { background: var(--panel); padding: 15px; border-radius: 10px; color: #fff; display: flex; flex-direction: column; gap: 10px; }
+        .row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 2px; }
+        input[type=range] { width: 100%; height: 25px; accent-color: var(--tsinghua-purple); margin-bottom: 5px; cursor: pointer; }
+        button { width: 100%; padding: 12px; background: var(--tsinghua-purple); color: #fff; border: none; border-radius: 6px; font-weight: bold; font-size: 16px; margin-top: 5px; cursor: pointer; transition: 0.2s; letter-spacing: 1px; }
+        button:hover { background: #4a1d64; }
+        button:active { transform: scale(0.98); }
+        .badge { background: rgba(255,255,255,0.15); padding: 1px 6px; border-radius: 3px; font-family: monospace; font-size: 13px; }
+        
+        #eff-pnl { display: flex; justify-content: space-around; margin-top: 10px; padding: 10px; background: #fdfdfd; border: 1px solid #eee; border-radius: 8px; font-size: 12px; }
+        .stat-item { text-align: center; }
+        .stat-val { display: block; font-weight: bold; font-size: 14px; color: var(--panel); margin-top: 2px; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="ts-name">TSINGHUA UNIVERSITY</div>
+    <div class="sub-title">Photovoltaic Physics & Energy Analysis</div>
+</div>
+
+<div class="box">
+    <div class="stg" id="s">
+        <div id="u_r" class="res">
+            <div id="u_w"></div>
+            <div style="position:absolute;top:-18px;width:100%;text-align:center;font-size:10px;font-weight:bold;color:var(--ec)">Conduction Band (Ec)</div>
+        </div>
+        <div id="p" class="pip"></div>
+        <div id="l_r" class="res">
+            <div style="position:absolute;bottom:5px;width:100%;text-align:center;color:#fff;font-size:10px;font-weight:bold;">Valence Band (Ev)</div>
+        </div>
+        <div id="w_ec" class="wire"></div><div id="w_ev" class="wire"></div><div id="w_v" class="wire"></div>
+        <div id="b_c"><div id="blb"></div></div>
+    </div>
+    
+    <div class="ctrl">
+        <div><div class="row"><span>Photon Energy (hν)</span><span class="badge" id="vh">3.0eV</span></div><input type="range" id="hi" min="0.5" max="6.5" step="0.1" value="3.0"></div>
+        <div><div class="row"><span>Band Gap (Eg)</span><span class="badge" id="ve">1.5eV</span></div><input type="range" id="ei" min="0.5" max="4.5" step="0.1" value="1.5"></div>
+        <button onclick="run()">EMIT PHOTON</button>
+    </div>
+
+    <div id="eff-pnl">
+        <div class="stat-item">Useful Energy<br><span id="eff-use" class="stat-val">0.0 eV</span></div>
+        <div class="stat-item">Thermal Loss<br><span id="eff-loss" class="stat-val" style="color:var(--loss)">0.0 eV</span></div>
+        <div class="stat-item">Efficiency<br><span id="eff-pct" class="stat-val" style="color:var(--ec)">0%</span></div>
+    </div>
+</div>
+
+<script>
+    const hi=document.getElementById('hi'), ei=document.getElementById('ei'), vh=document.getElementById('vh'), ve=document.getElementById('ve'), ur=document.getElementById('u_r'), pi=document.getElementById('p'), uw=document.getElementById('u_w'), lb=document.getElementById('blb'), bc=document.getElementById('b_c'), s=document.getElementById('s'), we=document.getElementById('w_ec'), wv=document.getElementById('w_v');
+    const effUse=document.getElementById('eff-use'), effLoss=document.getElementById('eff-loss'), effPct=document.getElementById('eff-pct');
+    const BASE=330, PX=55;
+
+    function up(){
+        const h=parseFloat(hi.value), e=parseFloat(ei.value);
+        vh.innerText=h.toFixed(1)+'eV'; ve.innerText=e.toFixed(1)+'eV';
+        const g=e*PX, y=BASE-g;
+        ur.style.top=(y-40)+'px'; pi.style.top=y+'px'; pi.style.height=g+'px';
+        we.style.top=y+'px'; wv.style.top=y+'px'; wv.style.height=g+'px';
+        bc.style.top=(y+(g/2)-24)+'px';
+    }
+
+    function run(){
+        const h=parseFloat(hi.value), e=parseFloat(ei.value);
+        const p=document.createElement('div'); p.className='pht'; p.style.bottom='0'; s.appendChild(p);
+        p.animate([{bottom:'0', opacity:1},{bottom:'80px', opacity:0.5}],300).onfinish=()=>p.remove();
+        
+        setTimeout(()=>{
+            const el=document.createElement('div'); el.className='elt'; el.style.bottom='50px'; s.appendChild(el);
+            const targetY = 50 + h*PX;
+            el.animate([{bottom:'50px'},{bottom:targetY+'px'}],{duration:600,easing:'ease-out'}).onfinish=()=>{
+                if(h < e){ 
+                    el.animate([{opacity:1, transform:'translateX(-50%) scale(1)'},{bottom:'50px',opacity:0, transform:'translateX(-50%) scale(0.5)'}],400).onfinish=()=>el.remove(); 
+                    effUse.innerText = "0.0 eV"; effLoss.innerText = "0.0 eV"; effPct.innerText = "0%";
+                } else {
+                    const loss = h - e;
+                    const efficiency = (e / h * 100).toFixed(0);
+                    
+                    if(loss > 0.1) showLoss(targetY, loss);
+                    
+                    effUse.innerText = e.toFixed(1) + " eV";
+                    effLoss.innerText = loss.toFixed(1) + " eV";
+                    effPct.innerText = efficiency + "%";
+                    
+                    // Thermalization Drop animation
+                    el.animate([{bottom:targetY+'px'},{bottom:(50 + e*PX)+'px'}], 400).onfinish=()=>{
+                        el.remove();
+                        uw.style.height='100%'; lb.classList.add('on'); 
+                        setTimeout(()=>{uw.style.height='0'; lb.classList.remove('on');},800); 
+                    };
+                }
+            };
+        },200);
+    }
+
+    function showLoss(y, val){
+        const l=document.createElement('div'); l.className='loss-tag';
+        l.innerText=`♨ Thermalization: ${val.toFixed(1)}eV`;
+        l.style.bottom=y+'px'; l.style.left='28%';
+        s.appendChild(l);
+        setTimeout(()=>l.remove(), 1000);
+    }
+    hi.oninput=ei.oninput=up; up();
+</script>
+</body>
+</html>

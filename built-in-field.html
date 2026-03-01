@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tsinghua University: Diffusion & Drift Simulation</title>
+    <style>
+        :root {
+            --n-color: #ff4b2b;
+            --p-color: #00d2ff;
+            --e-field: #00ff88;
+            --tsinghua-purple: #612c82; /* Official Tsinghua Color */
+        }
+        body {
+            margin: 0; background: #050505; color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+        }
+
+        /* Tsinghua Branded Header */
+        .ts-header {
+            background: #1a1a1a;
+            padding: 10px 20px;
+            border-bottom: 2px solid var(--tsinghua-purple);
+            text-align: center;
+        }
+        .ts-header h1 {
+            font-family: "Times New Roman", Times, serif;
+            font-size: 22px;
+            color: var(--tsinghua-purple);
+            margin: 0;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+        }
+        .ts-header p {
+            font-size: 11px;
+            color: #888;
+            margin: 2px 0 0 0;
+            font-weight: bold;
+        }
+
+        .controls {
+            background: #111; padding: 15px; border-bottom: 2px solid #333;
+            display: flex; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: center;
+        }
+        .control-group { display: flex; flex-direction: column; gap: 4px; }
+        label { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+        input[type=range] { width: 140px; accent-color: var(--tsinghua-purple); cursor: pointer; }
+        canvas { flex: 1; touch-action: none; background: #000; }
+        .hint { color: var(--e-field); font-size: 12px; font-weight: bold; text-align: center; width: 100%; }
+        
+        button {
+            padding: 6px 15px; 
+            background: var(--tsinghua-purple); 
+            color: #fff; 
+            border: none; 
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: opacity 0.2s;
+        }
+        button:hover { opacity: 0.8; }
+
+        @media (min-width: 600px) { .hint { width: auto; } input[type=range] { width: 180px; } }
+    </style>
+</head>
+<body>
+
+<div class="ts-header">
+    <h1>Tsinghua University</h1>
+    <p>Semiconductor Physics: Diffusion & Drift Dynamics</p>
+</div>
+
+<div class="controls">
+    <div class="control-group">
+        <label>Junction Position</label>
+        <input type="range" id="juncPos" min="0.1" max="0.9" step="0.01" value="0.5">
+    </div>
+    <div class="control-group">
+        <label>Field Strength</label>
+        <input type="range" id="fieldStrength" min="2" max="15" step="1" value="8">
+    </div>
+    <div class="hint">Tap/Click to Release Photo-generated Carriers</div>
+    <button onclick="particles=[]">Reset Simulation</button>
+</div>
+
+<canvas id="simCanvas"></canvas>
+
+<script>
+const canvas = document.getElementById('simCanvas');
+const ctx = canvas.getContext('2d');
+const juncInput = document.getElementById('juncPos');
+const fieldInput = document.getElementById('fieldStrength');
+
+let particles = [];
+let juncRatio = 0.5;
+let fieldPower = 8;
+let width, height, isHorizontal;
+
+function resize() {
+    width = window.innerWidth;
+    height = canvas.offsetHeight;
+    canvas.width = width;
+    canvas.height = height;
+    isHorizontal = width > height;
+}
+window.addEventListener('resize', resize);
+resize();
+
+class CarrierPair {
+    constructor(x, y) {
+        this.ex = x; this.ey = y; 
+        this.hx = x; this.hy = y;
+        this.active = true;
+        this.radius = width < 500 ? 10 : 14;
+        this.evx = (Math.random() - 0.5) * 2;
+        this.evy = (Math.random() - 0.5) * 2;
+        this.hvx = (Math.random() - 0.5) * 2;
+        this.hvy = (Math.random() - 0.5) * 2;
+    }
+
+    update() {
+        const mid = (isHorizontal ? width : height) * juncRatio;
+        const depWidth = isHorizontal ? 70 : 60;
+
+        this.evx += (Math.random() - 0.5) * 0.4;
+        this.evy += (Math.random() - 0.5) * 0.4;
+        this.hvx += (Math.random() - 0.5) * 0.4;
+        this.hvy += (Math.random() - 0.5) * 0.4;
+        
+        const friction = 0.97;
+        this.evx *= friction; this.evy *= friction;
+        this.hvx *= friction; this.hvy *= friction;
+
+        if (isHorizontal) {
+            if (this.ex > mid - depWidth && this.ex < mid + depWidth) this.evx += (fieldPower * 0.15);
+            if (this.hx > mid - depWidth && this.hx < mid + depWidth) this.hvx -= (fieldPower * 0.15);
+        } else {
+            if (this.ey > mid - depWidth && this.ey < mid + depWidth) this.evy -= (fieldPower * 0.15);
+            if (this.hy > mid - depWidth && this.hy < mid + depWidth) this.hvy += (fieldPower * 0.15);
+        }
+
+        this.ex += this.evx; this.ey += this.evy;
+        this.hx += this.hvx; this.hy += this.hvy;
+
+        if (this.ex < -50 || this.ex > width + 50 || this.ey < -50 || this.ey > height + 50) this.active = false;
+        if (this.hx < -50 || this.hx > width + 50 || this.hy < -50 || this.hy > height + 50) this.active = false;
+    }
+
+    draw() {
+        ctx.shadowBlur = 15; ctx.shadowColor = '#ff4b2b';
+        ctx.fillStyle = '#ff4b2b';
+        ctx.beginPath(); ctx.arc(this.ex, this.ey, this.radius, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.font = `bold ${this.radius * 1.2}px Arial`; ctx.textAlign = 'center';
+        ctx.shadowBlur = 0; ctx.fillText('-', this.ex, this.ey + (this.radius * 0.4));
+
+        ctx.shadowBlur = 15; ctx.shadowColor = '#00d2ff';
+        ctx.fillStyle = '#00d2ff';
+        ctx.beginPath(); ctx.arc(this.hx, this.hy, this.radius, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.font = `bold ${this.radius}px Arial`; ctx.textAlign = 'center';
+        ctx.shadowBlur = 0; ctx.fillText('+', this.hx, this.hy + (this.radius * 0.35));
+    }
+}
+
+function drawEnvironment() {
+    const mid = (isHorizontal ? width : height) * juncRatio;
+    const dep = isHorizontal ? 70 : 60;
+
+    ctx.fillStyle = 'rgba(0, 255, 136, 0.08)';
+    ctx.strokeStyle = 'rgba(0, 255, 136, 0.4)';
+    ctx.setLineDash([10, 5]);
+    if (isHorizontal) {
+        ctx.fillRect(mid - dep, 0, dep * 2, height);
+        ctx.strokeRect(mid - dep, 0, dep * 2, height);
+    } else {
+        ctx.fillRect(0, mid - dep, width, dep * 2);
+        ctx.strokeRect(0, mid - dep, width, dep * 2);
+    }
+    ctx.setLineDash([]);
+
+    ctx.font = `bold ${width < 500 ? '30' : '50'}px sans-serif`; ctx.textAlign = 'center';
+    
+    ctx.fillStyle = 'rgba(255, 75, 43, 0.25)';
+    if(isHorizontal) ctx.fillText('N', mid + dep + 50, height/2 + 15);
+    else ctx.fillText('N', width/2, mid - dep - 30);
+
+    ctx.fillStyle = 'rgba(0, 210, 255, 0.25)';
+    if(isHorizontal) ctx.fillText('P', mid - dep - 50, height/2 + 15);
+    else ctx.fillText('P', width/2, mid + dep + 60);
+
+    ctx.strokeStyle = '#00ff88'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    if (isHorizontal) {
+        drawArrow(mid + dep - 10, height - 40, mid - dep + 10, height - 40);
+        ctx.fillStyle = '#00ff88'; ctx.font = '10px sans-serif';
+        ctx.fillText('BUILT-IN FIELD (E)', mid, height - 45);
+    } else {
+        drawArrow(width - 30, mid - dep + 10, width - 30, mid + dep - 10);
+        ctx.fillStyle = '#00ff88'; ctx.font = '10px sans-serif';
+        ctx.fillText('E', width - 30, mid - dep - 5);
+    }
+    ctx.stroke();
+}
+
+function drawArrow(x1, y1, x2, y2) {
+    const head = 10; const angle = Math.atan2(y2-y1, x2-x1);
+    ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+    ctx.lineTo(x2 - head * Math.cos(angle - Math.PI/6), y2 - head * Math.sin(angle - Math.PI/6));
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - head * Math.cos(angle + Math.PI/6), y2 - head * Math.sin(angle + Math.PI/6));
+}
+
+function loop() {
+    ctx.fillStyle = '#050505'; ctx.fillRect(0, 0, width, height);
+    drawEnvironment();
+    particles = particles.filter(p => { p.update(); p.draw(); return p.active; });
+    requestAnimationFrame(loop);
+}
+
+const handleInput = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
+    const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
+    for(let i=0; i<2; i++) particles.push(new CarrierPair(x, y));
+};
+
+canvas.addEventListener('mousedown', handleInput);
+canvas.addEventListener('touchstart', (e) => { e.preventDefault(); handleInput(e); });
+
+juncInput.oninput = (e) => juncRatio = parseFloat(e.target.value);
+fieldInput.oninput = (e) => fieldPower = parseFloat(e.target.value);
+
+loop();
+</script>
+</body>
+</html>

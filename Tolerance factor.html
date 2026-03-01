@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tsinghua University | Perovskite Stability Simulation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        :root { --ts-purple: #612c82; --panel-bg: rgba(255, 255, 255, 0.95); }
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #050505; }
+        #header { position: absolute; top: 0; width: 100%; text-align: center; color: white; padding: 20px; z-index: 10; pointer-events: none; }
+        #header h1 { font-family: "Times New Roman", serif; font-size: 2rem; margin: 0; color: var(--ts-purple); }
+        
+        .panel { position: absolute; background: var(--panel-bg); padding: 18px; border-radius: 10px; box-shadow: 0 4px 25px rgba(0,0,0,0.4); z-index: 10; }
+        #controls { left: 20px; top: 80px; width: 250px; }
+        #status-box { right: 20px; top: 80px; width: 280px; }
+
+        .btn { display: block; width: 100%; padding: 10px; margin: 8px 0; background: var(--ts-purple); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .btn:disabled { background: #bbb; opacity: 0.5; }
+        
+        .slider-container { margin-top: 20px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+        input[type=range] { width: 100%; accent-color: var(--ts-purple); cursor: pointer; }
+        
+        #phase-tag { font-weight: bold; font-size: 1.2rem; text-align: center; margin: 10px 0; display: block; }
+        .info-text { font-size: 0.85rem; line-height: 1.4; color: #444; }
+    </style>
+</head>
+<body>
+
+    <div id="header">
+        <h1>TSINGHUA UNIVERSITY</h1>
+        <p>Structural Stability & Tolerance Factor Analysis</p>
+    </div>
+
+    <div id="controls" class="panel">
+        <h3>Lattice Assembly</h3>
+        <button class="btn" id="addB">1. Add B-site (Pb²⁺)</button>
+        <button class="btn" id="addX" disabled>2. Add X-site (I⁻)</button>
+        <button class="btn" id="addA" disabled>3. Add A-site (MA⁺)</button>
+        
+        <div class="slider-container">
+            <label style="font-size: 0.8rem; font-weight: bold;">Tolerance Factor ($t$): <span id="tVal" style="color:var(--ts-purple)">1.00</span></label>
+            <input type="range" id="tSlider" min="0.60" max="1.30" step="0.01" value="1.00">
+        </div>
+        <button class="btn" style="background:#444; margin-top: 15px;" onclick="location.reload()">Reset Lattice</button>
+    </div>
+
+    <div id="status-box" class="panel">
+        <span id="phase-tag" style="color: #27ae60;">CUBIC PHASE</span>
+        <div id="status-desc" class="info-text">Structure is stable and highly symmetric. Perfect for high-efficiency solar cells.</div>
+    </div>
+
+    <script>
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        camera.position.set(6, 6, 10);
+
+        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+        const light = new THREE.PointLight(0xffffff, 1);
+        light.position.set(10, 10, 10);
+        scene.add(light);
+
+        const unitSize = 4;
+        let aSite = null;
+        let octaGroup = new THREE.Group();
+        scene.add(octaGroup);
+
+        // Materials
+        const matA = new THREE.MeshPhongMaterial({ color: 0xffd700 });
+        const matB = new THREE.MeshPhongMaterial({ color: 0x888888 });
+        const matX = new THREE.MeshPhongMaterial({ color: 0x9370db });
+        const matOcta = new THREE.MeshPhongMaterial({ color: 0x9370db, transparent: true, opacity: 0.35, side: THREE.DoubleSide });
+
+        function createLabel(text, color) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64; canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = color; ctx.font = 'Bold 48px Arial'; ctx.textAlign = 'center'; ctx.fillText(text, 32, 48);
+            const tex = new THREE.CanvasTexture(canvas);
+            const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex }));
+            sprite.scale.set(0.8, 0.8, 1);
+            return sprite;
+        }
+
+        document.getElementById('addB').onclick = function() {
+            const pos = [[-1,-1,-1], [1,-1,-1], [-1,1,-1], [1,1,-1], [-1,-1,1], [1,-1,1], [-1,1,1], [1,1,1]];
+            pos.forEach((p, i) => {
+                const b = new THREE.Mesh(new THREE.SphereGeometry(0.35, 32, 32), matB);
+                b.position.set(p[0]*unitSize/2, p[1]*unitSize/2, p[2]*unitSize/2);
+                scene.add(b);
+                if(i === 7) { const l = createLabel('B', '#fff'); l.position.y = 0.6; b.add(l); }
+            });
+            this.disabled = true; document.getElementById('addX').disabled = false;
+        };
+
+        document.getElementById('addX').onclick = function() {
+            octaGroup.add(new THREE.Mesh(new THREE.OctahedronGeometry(unitSize/2), matOcta));
+            const xPos = [[1,0,0], [-1,0,0], [0,1,0], [0,-1,0], [0,0,1], [0,0,-1]];
+            xPos.forEach((p, i) => {
+                const x = new THREE.Mesh(new THREE.SphereGeometry(0.25, 32, 32), matX);
+                x.position.set(p[0]*unitSize/2, p[1]*unitSize/2, p[2]*unitSize/2);
+                octaGroup.add(x);
+                if(i === 4) { const l = createLabel('X', '#fff'); l.position.y = 0.5; x.add(l); }
+            });
+            this.disabled = true; document.getElementById('addA').disabled = false;
+        };
+
+        document.getElementById('addA').onclick = function() {
+            aSite = new THREE.Mesh(new THREE.SphereGeometry(0.9, 32, 32), matA);
+            const l = createLabel('A', '#000'); l.position.y = 1.1; aSite.add(l);
+            scene.add(aSite);
+            this.disabled = true;
+        };
+
+        const phaseTag = document.getElementById('phase-tag');
+        const statusDesc = document.getElementById('status-desc');
+
+        document.getElementById('tSlider').oninput = function() {
+            const t = parseFloat(this.value);
+            document.getElementById('tVal').innerText = t.toFixed(2);
+            if(!aSite) return;
+
+            // Visual Scaling
+            aSite.scale.set(t, t, t);
+
+            // Logic for Phase Transitions
+            if (t < 0.80) {
+                // Highly distorted - Non Perovskite
+                octaGroup.rotation.set(0.6, 0.6, 0.6);
+                octaGroup.scale.set(0.8, 1.2, 0.8); // Squashed
+                phaseTag.innerText = "UNSTABLE / NON-PV";
+                phaseTag.style.color = "#c0392b";
+                statusDesc.innerText = "A-site is too small. The structure collapses into a non-perovskite phase (e.g., ilmenite).";
+            } else if (t < 0.90) {
+                // Distorted / Orthorhombic
+                const tilt = (0.90 - t) * 3;
+                octaGroup.rotation.set(tilt, tilt, 0);
+                octaGroup.scale.set(1, 1, 1);
+                phaseTag.innerText = "ORTHORHOMBIC";
+                phaseTag.style.color = "#e67e22";
+                statusDesc.innerText = "A-site is slightly small. Octahedra tilt to maintain bonding, reducing symmetry.";
+            } else if (t <= 1.05) {
+                // Cubic
+                octaGroup.rotation.set(0, 0, 0);
+                octaGroup.scale.set(1, 1, 1);
+                phaseTag.innerText = "CUBIC PHASE";
+                phaseTag.style.color = "#27ae60";
+                statusDesc.innerText = "Ideal size matching. High symmetry cubic lattice ($Pm\\bar{3}m$) is formed.";
+            } else {
+                // Too large - Hexagonal
+                octaGroup.rotation.set(0, 0, 0);
+                octaGroup.scale.set(1.4, 0.7, 1.4); // Stretched flat
+                phaseTag.innerText = "HEXAGONAL / UNSTABLE";
+                phaseTag.style.color = "#c0392b";
+                statusDesc.innerText = "A-site is too large to fit in the cavity. Leads to 2D-like hexagonal layers.";
+            }
+        };
+
+        function animate() { requestAnimationFrame(animate); renderer.render(scene, camera); }
+        animate();
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>

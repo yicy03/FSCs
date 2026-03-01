@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tsinghua PV | Pure Lead Perovskite Bandgap Lab</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --ts-purple: #612c82; --bg: #f8f9fa; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        #header { text-align: center; margin-bottom: 25px; border-bottom: 4px solid var(--ts-purple); width: 100%; max-width: 1000px; padding-bottom: 15px; }
+        #header h1 { font-family: "Times New Roman", serif; color: var(--ts-purple); margin: 0; font-size: 2.2rem; }
+        
+        .main-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; width: 100%; max-width: 1100px; }
+        .card { background: white; padding: 22px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        
+        /* 样品外观模块 */
+        .sample-display { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 140px; border-radius: 10px; background: #e0e0e0; margin-bottom: 20px; border: 1px solid #ccc; }
+        #perovskite-film { width: 160px; height: 75px; border-radius: 4px; box-shadow: 0 5px 15px rgba(0,0,0,0.4); transition: background 0.5s ease; position: relative; }
+        #perovskite-film::after { content: "Lead Perovskite Film"; position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); font-size: 11px; font-weight: bold; color: #555; }
+
+        /* 能带图 */
+        .band-diag { height: 280px; position: relative; border-left: 2px solid #333; border-bottom: 2px solid #333; background: #fff; margin: 10px 0; overflow: hidden; }
+        .band { position: absolute; width: 100%; transition: all 0.5s ease; left: 0; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 13px; z-index: 5; }
+        #conduction { height: 40px; background: rgba(46, 204, 113, 0.9); }
+        #valence { height: 40px; background: rgba(52, 152, 219, 0.9); }
+        #gap-line { position: absolute; left: 50%; width: 2px; background: repeating-linear-gradient(0deg, #e74c3c, #e74c3c 5px, transparent 5px, transparent 10px); transition: all 0.5s ease; transform: translateX(-50%); z-index: 2; }
+
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; text-align: center; margin-top: 15px; }
+        .stat-val { font-size: 1.15rem; font-weight: bold; color: var(--ts-purple); }
+
+        .controls { grid-column: span 2; display: flex; flex-direction: column; align-items: center; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 1px solid #eee; }
+        input[type=range] { width: 90%; accent-color: var(--ts-purple); cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div id="header">
+        <h1>TSINGHUA UNIVERSITY</h1>
+        <p>Pure Lead System: $MAPb(Cl/Br/I)_3$ Bandgap & Color Evolution</p>
+    </div>
+
+    <div class="main-layout">
+        <div class="card">
+            <h3 style="margin-top:0; color:var(--ts-purple)">1. Electronic Structure & Color</h3>
+            <div class="sample-display">
+                <div id="perovskite-film"></div>
+            </div>
+            <div class="band-diag">
+                <div id="conduction" class="band">Conduction Band (Ec)</div>
+                <div id="gap-line"></div>
+                <div id="valence" class="band">Valence Band (Ev)</div>
+            </div>
+            <div class="stat-grid">
+                <div>Eg (eV)<br><span id="egVal" class="stat-val">3.00</span></div>
+                <div>Appearance<br><span id="colorName" class="stat-val">Clear</span></div>
+                <div>Edge (nm)<br><span id="waveVal" class="stat-val">413</span></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="margin-top:0; color:var(--ts-purple)">2. High-Fidelity Absorption Spectrum</h3>
+            <canvas id="spectrumChart" height="280"></canvas>
+            <p style="font-size: 0.8rem; color: #666; margin-top: 12px;">
+                Note: Pure lead perovskites show a direct bandgap with a sharp absorption onset. The VBM rises significantly from Cl to I.
+            </p>
+        </div>
+
+        <div class="controls">
+            <div style="display:flex; justify-content:space-between; width:90%; font-size:12px; font-weight:bold; color:#888; margin-bottom:10px;">
+                <span>Pure Chloride (3.0eV)</span>
+                <span>Pure Bromide (2.3eV)</span>
+                <span>Pure Iodide (1.58eV)</span>
+            </div>
+            <input type="range" id="compSlider" min="0" max="200" value="0">
+            <p style="font-weight: bold; margin-top:15px; color:var(--ts-purple);">
+                Current Composition: <span id="compLabel">MAPbCl₃</span>
+            </p>
+        </div>
+    </div>
+
+<script>
+    const slider = document.getElementById('compSlider');
+    const film = document.getElementById('perovskite-film');
+    const egVal = document.getElementById('egVal');
+    const colorName = document.getElementById('colorName');
+    const waveVal = document.getElementById('waveVal');
+    const compLabel = document.getElementById('compLabel');
+    const conduction = document.getElementById('conduction');
+    const valence = document.getElementById('valence');
+    const gapLine = document.getElementById('gap-line');
+
+    const ctx = document.getElementById('spectrumChart').getContext('2d');
+    const chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: Array.from({length: 121}, (_, i) => 300 + i * 5),
+            datasets: [{
+                label: 'Abs. Coefficient α (relative)',
+                data: [],
+                borderColor: '#612c82',
+                backgroundColor: 'rgba(97, 44, 130, 0.1)',
+                fill: true, tension: 0.2, pointRadius: 0
+            }]
+        },
+        options: { 
+            responsive: true, 
+            plugins: { legend: { display: false } }, 
+            scales: { 
+                y: { beginAtZero: true, max: 150, title: { display: true, text: 'α' } }, 
+                x: { title: { display: true, text: 'Wavelength (nm)' } } 
+            } 
+        }
+    });
+
+    function getAlpha(lambda, eg) {
+        const h_nu = 1240 / lambda;
+        if (h_nu >= eg) return 100 * Math.sqrt(h_nu - eg) + 35;
+        return 35 * Math.exp((h_nu - eg) / 0.045); // Urbach tail
+    }
+
+    function update() {
+        const val = parseInt(slider.value);
+        let eg, fColor, visualName, material;
+
+        if (val <= 100) {
+            // Cl to Br (3.0 -> 2.3)
+            const p = val / 100;
+            eg = 3.0 - (p * 0.7);
+            // Color: Clear -> Yellow -> Orange-Red (MAPbBr3)
+            const r = 255;
+            const g = Math.round(255 - p * 150); 
+            const b = Math.round(255 - p * 255);
+            fColor = `rgba(${r}, ${g}, ${b}, ${0.15 + p * 0.85})`;
+            visualName = val < 15 ? "Clear" : (val < 75 ? "Yellow" : "Orange-Red");
+            material = `MAPb(Cl${(1-p).toFixed(1)}Br${p.toFixed(1)})₃`;
+        } else {
+            // Br to I (2.3 -> 1.58)
+            const p = (val - 100) / 100;
+            eg = 2.3 - (p * 0.72);
+            // Color: Orange-Red -> Deep Red -> Red-Black -> Pure Black (MAPbI3)
+            const r = Math.round(255 - p * 245);
+            const g = Math.round(105 - p * 105);
+            const b = Math.round(0);
+            fColor = `rgb(${r}, ${g}, ${b})`;
+            visualName = p < 0.25 ? "Red" : (p < 0.65 ? "Deep Red" : "Black");
+            material = `MAPb(Br${(1-p).toFixed(1)}I${p.toFixed(1)})₃`;
+        }
+
+        film.style.backgroundColor = fColor;
+        colorName.innerText = visualName;
+
+        // Band Realignment Physics
+        const totalPct = val / 200;
+        const ecPos = 20 + (totalPct * 30);  
+        const evPos = 270 - (totalPct * 115); 
+        conduction.style.top = ecPos + "px";
+        valence.style.top = evPos + "px";
+        gapLine.style.top = (ecPos + 40) + "px";
+        gapLine.style.height = (evPos - (ecPos + 40)) + "px";
+
+        egVal.innerText = eg.toFixed(2);
+        waveVal.innerText = Math.round(1240/eg);
+        compLabel.innerText = material;
+
+        chart.data.datasets[0].data = chart.data.labels.map(l => getAlpha(l, eg));
+        chart.update('none');
+    }
+
+    slider.oninput = update;
+    update();
+</script>
+</body>
+</html>

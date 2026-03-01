@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tsinghua University | Perovskite 3D Network Builder</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        :root { --ts-purple: #612c82; --panel-bg: rgba(255, 255, 255, 0.95); }
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #050505; color: white; }
+        
+        /* Tsinghua Branding */
+        #header {
+            position: absolute; top: 0; width: 100%; text-align: center; color: white;
+            padding: 20px; pointer-events: none; z-index: 10;
+        }
+        #header h1 { font-family: "Times New Roman", Times, serif; font-size: 2.2rem; margin: 0; color: var(--ts-purple); text-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        #header p { margin: 5px 0; font-size: 1rem; letter-spacing: 2px; text-transform: uppercase; }
+
+        /* UI Panels */
+        .panel {
+            position: absolute; background: var(--panel-bg); padding: 20px;
+            border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); z-index: 10; color: #333;
+        }
+        #controls { left: 20px; top: 100px; width: 230px; }
+        #info { right: 20px; top: 100px; width: 260px; font-size: 0.9rem; }
+
+        h3 { margin-top: 0; color: var(--ts-purple); border-bottom: 2px solid #ddd; padding-bottom: 5px; }
+        .slider-group { margin: 15px 0; }
+        label { font-size: 0.8rem; font-weight: bold; color: #555; }
+        input[type=range] { width: 100%; accent-color: var(--ts-purple); cursor: pointer; }
+        
+        .btn {
+            display: block; width: 100%; padding: 10px; margin: 10px 0;
+            background: var(--ts-purple); color: white; border: none;
+            border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.3s;
+        }
+        .btn:hover { background: #4a1d64; }
+        .btn.active { background: #333; border: 2px solid var(--ts-purple); }
+
+        .stat-item { display: flex; justify-content: space-between; margin: 5px 0; font-family: monospace; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+    </style>
+</head>
+<body>
+
+    <div id="header">
+        <h1>TSINGHUA UNIVERSITY</h1>
+        <p>Perovskite 3D Network & Connectivity Analysis</p>
+    </div>
+
+    <div id="controls" class="panel">
+        <h3>Supercell Growth</h3>
+        
+        <div class="slider-group">
+            <label>Grid Size X: <span id="valX">2</span></label>
+            <input type="range" id="sizeX" min="1" max="4" value="2">
+        </div>
+        <div class="slider-group">
+            <label>Grid Size Y: <span id="valY">2</span></label>
+            <input type="range" id="sizeY" min="1" max="4" value="2">
+        </div>
+        <div class="slider-group">
+            <label>Grid Size Z: <span id="valZ">2</span></label>
+            <input type="range" id="sizeZ" min="1" max="4" value="2">
+        </div>
+
+        <button class="btn" id="explodeBtn">Toggle Explode View</button>
+        <button class="btn" id="viewModeBtn">View Mode: Polyhedra</button>
+    </div>
+
+    <div id="info" class="panel">
+        <h3>Network Statistics</h3>
+        <p>Finite Crystal Formula:</p>
+        <div class="stat-item">A-site (MA⁺): <span id="countA" style="color:#d4af37">8</span></div>
+        <div class="stat-item">B-site (Pb²⁺): <span id="countB" style="color:#7f8c8d">8</span></div>
+        <div class="stat-item">X-site (I⁻): <span id="countX" style="color:#9b59b6">24</span></div>
+        <hr>
+        <p style="font-size:0.8rem; color:#666;">Note: Atoms at the surface are not fully coordinated, diverging from the ideal $ABX_3$ ratio in small supercells.</p>
+    </div>
+
+    <script>
+        // Three.js Setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0a0a);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        camera.position.set(8, 6, 12);
+        controls.update();
+
+        // Lights
+        scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+        const light = new THREE.PointLight(0xffffff, 1);
+        light.position.set(10, 10, 10);
+        scene.add(light);
+
+        // Core Variables
+        const unitSize = 4;
+        let supercellGroup = new THREE.Group();
+        scene.add(supercellGroup);
+
+        let gridX = 2, gridY = 2, gridZ = 2;
+        let isExploded = false;
+        let viewMode = 'polyhedra'; // 'polyhedra' or 'ballstick'
+
+        // Materials
+        const matA = new THREE.MeshPhongMaterial({ color: 0xd4af37 }); // Gold
+        const matB = new THREE.MeshPhongMaterial({ color: 0x7f8c8d }); // Grey
+        const matX = new THREE.MeshPhongMaterial({ color: 0x9b59b6, transparent: true, opacity: 0.8 }); // Purple
+        const matOcta = new THREE.MeshPhongMaterial({ color: 0x9b59b6, transparent: true, opacity: 0.25, side: THREE.DoubleSide });
+        const matWire = new THREE.LineBasicMaterial({ color: 0x333333 });
+
+        // Build a single Unit Cell
+        function createUnitCell(xOffset, yOffset, zOffset) {
+            const cellGroup = new THREE.Group();
+            cellGroup.userData = { xOffset, yOffset, zOffset }; // Store original position
+
+            // 1. Wireframe
+            const boxGeom = new THREE.BoxGeometry(unitSize, unitSize, unitSize);
+            const edges = new THREE.EdgesGeometry(boxGeom);
+            const wire = new THREE.LineSegments(edges, matWire);
+            cellGroup.add(wire);
+
+            // 2. Atoms (Only unique to one cell to avoid overlap in supercell)
+            // B-site: Corners (1 unique per cell at bottom-back-left)
+            const b = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 16), matB);
+            b.position.set(-unitSize/2, -unitSize/2, -unitSize/2);
+            cellGroup.add(b);
+
+            // A-site: Center (1 unique)
+            const a = new THREE.Mesh(new THREE.SphereGeometry(0.8, 16, 16), matA);
+            a.position.set(0, 0, 0);
+            cellGroup.add(a);
+
+            // X-site: Face Centers (3 unique at X-left, Y-bottom, Z-back faces)
+            const uniqueX = [[-1,0,0], [0,-1,0], [0,0,-1]];
+            uniqueX.forEach(p => {
+                const x = new THREE.Mesh(new THREE.SphereGeometry(0.25, 16, 16), matX);
+                x.position.set(p[0]*unitSize/2, p[1]*unitSize/2, p[2]*unitSize/2);
+                cellGroup.add(x);
+            });
+
+            // 3. Octahedra Visualization
+            const octaGeom = new THREE.OctahedronGeometry(unitSize/2);
+            const octaMesh = new THREE.Mesh(octaGeom, matOcta);
+            octaMesh.visible = (viewMode === 'polyhedra');
+            cellGroup.add(octaMesh);
+
+            cellGroup.position.set(xOffset * unitSize, yOffset * unitSize, zOffset * unitSize);
+            return cellGroup;
+        }
+
+        // Generate the Supercell Network
+        function buildSupercell() {
+            supercellGroup.clear(); // Clear existing
+
+            for (let x = 0; x < gridX; x++) {
+                for (let y = 0; y < gridY; y++) {
+                    for (let z = 0; z < gridZ; z++) {
+                        const cell = createUnitCell(x, y, z);
+                        supercellGroup.add(cell);
+                    }
+                }
+            }
+
+            // Center the entire group
+            const box = new THREE.Box3().setFromObject(supercellGroup);
+            const center = box.getCenter(new THREE.Vector3());
+            supercellGroup.position.sub(center);
+
+            updateStats();
+        }
+
+        // Statistical Tracking
+        function updateStats() {
+            // Formula for Finite Crystal Atoms: A(N^3), B(N+1)^3, X 3N(N+1)^2
+            // Simplistic calculation for this simulation unique method:
+            const countA = gridX * gridY * gridZ;
+            const countB = countA; // unique per cell
+            const countX = countA * 3; // unique per cell
+
+            document.getElementById('countA').innerText = countA;
+            document.getElementById('countB').innerText = countB;
+            document.getElementById('countX').innerText = countX;
+        }
+
+        // Interactive UI logic
+        const updateGrid = (axis, val) => {
+            if (axis === 'x') gridX = parseInt(val);
+            if (axis === 'y') gridY = parseInt(val);
+            if (axis === 'z') gridZ = parseInt(val);
+            buildSupercell();
+        }
+
+        document.getElementById('sizeX').oninput = e => { updateGrid('x', e.target.value); document.getElementById('valX').innerText = e.target.value; }
+        document.getElementById('sizeY').oninput = e => { updateGrid('y', e.target.value); document.getElementById('valY').innerText = e.target.value; }
+        document.getElementById('sizeZ').oninput = e => { updateGrid('z', e.target.value); document.getElementById('valZ').innerText = e.target.value; }
+
+        document.getElementById('explodeBtn').onclick = function() {
+            isExploded = !isExploded;
+            this.classList.toggle('active');
+            
+            supercellGroup.children.forEach(cell => {
+                const ud = cell.userData;
+                const explodeFactor = isExploded ? 1.5 : 1.0;
+                cell.position.set(
+                    ud.xOffset * unitSize * explodeFactor,
+                    ud.yOffset * unitSize * explodeFactor,
+                    ud.zOffset * unitSize * explodeFactor
+                );
+            });
+            // Recenter
+            const box = new THREE.Box3().setFromObject(supercellGroup);
+            const center = box.getCenter(new THREE.Vector3());
+            supercellGroup.position.set(0,0,0);
+            supercellGroup.position.sub(center);
+        };
+
+        document.getElementById('viewModeBtn').onclick = function() {
+            viewMode = (viewMode === 'polyhedra') ? 'ballstick' : 'polyhedra';
+            this.innerText = `View Mode: ${viewMode.charAt(0).toUpperCase() + viewMode.slice(1)}`;
+            
+            supercellGroup.children.forEach(cell => {
+                cell.children.forEach(child => {
+                    if (child.geometry.type === 'OctahedronGeometry') {
+                        child.visible = (viewMode === 'polyhedra');
+                    }
+                });
+            });
+        };
+
+        // Animation Loop
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Initialize
+        buildSupercell();
+        animate();
+    </script>
+</body>
+</html>
