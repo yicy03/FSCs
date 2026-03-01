@@ -2,28 +2,57 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Tsinghua University | Perovskite Stability Simulation</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <style>
-        :root { --ts-purple: #612c82; --panel-bg: rgba(255, 255, 255, 0.95); }
-        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #050505; }
-        #header { position: absolute; top: 0; width: 100%; text-align: center; color: white; padding: 20px; z-index: 10; pointer-events: none; }
-        #header h1 { font-family: "Times New Roman", serif; font-size: 2rem; margin: 0; color: var(--ts-purple); }
+        :root { --ts-purple: #612c82; --panel-bg: rgba(255, 255, 255, 0.98); }
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', system-ui, sans-serif; background: #000; color: white; display: flex; flex-direction: column; height: 100vh; }
         
-        .panel { position: absolute; background: var(--panel-bg); padding: 18px; border-radius: 10px; box-shadow: 0 4px 25px rgba(0,0,0,0.4); z-index: 10; }
-        #controls { left: 20px; top: 80px; width: 250px; }
-        #status-box { right: 20px; top: 80px; width: 280px; }
+        /* 标题栏优化 */
+        #header { 
+            position: absolute; top: 0; width: 100%; text-align: center; 
+            padding: 15px 0; z-index: 20; pointer-events: none;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+        }
+        #header h1 { font-family: "Times New Roman", serif; font-size: 1.5rem; margin: 0; color: #fff; }
+        #header p { margin: 2px 0; font-size: 0.7rem; letter-spacing: 1px; color: #ccc; }
 
-        .btn { display: block; width: 100%; padding: 10px; margin: 8px 0; background: var(--ts-purple); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        .btn:disabled { background: #bbb; opacity: 0.5; }
+        /* 3D 渲染容器 */
+        #canvas-container { flex: 1; width: 100%; position: relative; }
+
+        /* 面板基础 */
+        .panel { background: var(--panel-bg); padding: 15px; border-radius: 10px; box-shadow: 0 4px 25px rgba(0,0,0,0.4); z-index: 10; color: #333; }
         
-        .slider-container { margin-top: 20px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+        /* 桌面端布局 */
+        @media (min-width: 769px) {
+            .panel { position: absolute; top: 80px; width: 240px; }
+            #controls { left: 20px; }
+            #status-box { right: 20px; }
+        }
+
+        /* 移动端布局：底部平铺，不遮挡模型 */
+        @media (max-width: 768px) {
+            #ui-wrapper {
+                display: flex; flex-direction: row; gap: 8px; padding: 10px;
+                background: #111; height: 38vh; overflow-y: auto;
+            }
+            .panel { position: static !important; flex: 1; padding: 12px; font-size: 0.8rem; }
+            #header h1 { font-size: 1.2rem; }
+            .btn { padding: 8px !important; font-size: 0.75rem !important; }
+            #phase-tag { font-size: 0.9rem !important; }
+        }
+
+        .btn { display: block; width: 100%; padding: 10px; margin: 8px 0; background: var(--ts-purple); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn:disabled { background: #bbb; opacity: 0.5; cursor: not-allowed; }
+        .btn:active { transform: scale(0.98); }
+        
+        .slider-container { margin-top: 10px; padding: 8px; border: 1px solid #ddd; border-radius: 5px; }
         input[type=range] { width: 100%; accent-color: var(--ts-purple); cursor: pointer; }
         
-        #phase-tag { font-weight: bold; font-size: 1.2rem; text-align: center; margin: 10px 0; display: block; }
-        .info-text { font-size: 0.85rem; line-height: 1.4; color: #444; }
+        #phase-tag { font-weight: bold; font-size: 1.1rem; text-align: center; margin-bottom: 8px; display: block; }
+        .info-text { font-size: 0.75rem; line-height: 1.3; color: #444; }
     </style>
 </head>
 <body>
@@ -33,30 +62,37 @@
         <p>Structural Stability & Tolerance Factor Analysis</p>
     </div>
 
-    <div id="controls" class="panel">
-        <h3>Lattice Assembly</h3>
-        <button class="btn" id="addB">1. Add B-site (Pb²⁺)</button>
-        <button class="btn" id="addX" disabled>2. Add X-site (I⁻)</button>
-        <button class="btn" id="addA" disabled>3. Add A-site (MA⁺)</button>
-        
-        <div class="slider-container">
-            <label style="font-size: 0.8rem; font-weight: bold;">Tolerance Factor ($t$): <span id="tVal" style="color:var(--ts-purple)">1.00</span></label>
-            <input type="range" id="tSlider" min="0.60" max="1.30" step="0.01" value="1.00">
-        </div>
-        <button class="btn" style="background:#444; margin-top: 15px;" onclick="location.reload()">Reset Lattice</button>
-    </div>
+    <div id="canvas-container"></div>
 
-    <div id="status-box" class="panel">
-        <span id="phase-tag" style="color: #27ae60;">CUBIC PHASE</span>
-        <div id="status-desc" class="info-text">Structure is stable and highly symmetric. Perfect for high-efficiency solar cells.</div>
+    <div id="ui-wrapper">
+        <div id="controls" class="panel">
+            <h3 style="margin:0 0 10px 0; font-size: 1rem; color: var(--ts-purple);">Lattice Assembly</h3>
+            <button class="btn" id="addB">1. Add B-site (Pb²⁺)</button>
+            <button class="btn" id="addX" disabled>2. Add X-site (I⁻)</button>
+            <button class="btn" id="addA" disabled>3. Add A-site (MA⁺)</button>
+            
+            <div class="slider-container">
+                <label style="font-size: 0.7rem; font-weight: bold;">Tolerance Factor ($t$): <span id="tVal" style="color:var(--ts-purple)">1.00</span></label>
+                <input type="range" id="tSlider" min="0.60" max="1.30" step="0.01" value="1.00">
+            </div>
+            <button class="btn" style="background:#444; margin-top: 10px;" onclick="location.reload()">Reset</button>
+        </div>
+
+        <div id="status-box" class="panel">
+            <span id="phase-tag" style="color: #27ae60;">CUBIC PHASE</span>
+            <div id="status-desc" class="info-text">Structure is stable and highly symmetric. Perfect for high-efficiency solar cells.</div>
+        </div>
     </div>
 
     <script>
+        const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        scene.background = new THREE.Color(0x0a0a0a);
+
+        const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        container.appendChild(renderer.domElement);
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         camera.position.set(6, 6, 10);
@@ -71,7 +107,6 @@
         let octaGroup = new THREE.Group();
         scene.add(octaGroup);
 
-        // Materials
         const matA = new THREE.MeshPhongMaterial({ color: 0xffd700 });
         const matB = new THREE.MeshPhongMaterial({ color: 0x888888 });
         const matX = new THREE.MeshPhongMaterial({ color: 0x9370db });
@@ -125,51 +160,45 @@
             const t = parseFloat(this.value);
             document.getElementById('tVal').innerText = t.toFixed(2);
             if(!aSite) return;
-
-            // Visual Scaling
             aSite.scale.set(t, t, t);
-
-            // Logic for Phase Transitions
             if (t < 0.80) {
-                // Highly distorted - Non Perovskite
                 octaGroup.rotation.set(0.6, 0.6, 0.6);
-                octaGroup.scale.set(0.8, 1.2, 0.8); // Squashed
+                octaGroup.scale.set(0.8, 1.2, 0.8);
                 phaseTag.innerText = "UNSTABLE / NON-PV";
                 phaseTag.style.color = "#c0392b";
-                statusDesc.innerText = "A-site is too small. The structure collapses into a non-perovskite phase (e.g., ilmenite).";
+                statusDesc.innerText = "A-site is too small. The structure collapses into a non-perovskite phase.";
             } else if (t < 0.90) {
-                // Distorted / Orthorhombic
                 const tilt = (0.90 - t) * 3;
                 octaGroup.rotation.set(tilt, tilt, 0);
                 octaGroup.scale.set(1, 1, 1);
                 phaseTag.innerText = "ORTHORHOMBIC";
                 phaseTag.style.color = "#e67e22";
-                statusDesc.innerText = "A-site is slightly small. Octahedra tilt to maintain bonding, reducing symmetry.";
+                statusDesc.innerText = "A-site is slightly small. Octahedra tilt to maintain bonding.";
             } else if (t <= 1.05) {
-                // Cubic
                 octaGroup.rotation.set(0, 0, 0);
                 octaGroup.scale.set(1, 1, 1);
                 phaseTag.innerText = "CUBIC PHASE";
                 phaseTag.style.color = "#27ae60";
-                statusDesc.innerText = "Ideal size matching. High symmetry cubic lattice ($Pm\\bar{3}m$) is formed.";
+                statusDesc.innerText = "Ideal size matching. High symmetry cubic lattice formed.";
             } else {
-                // Too large - Hexagonal
                 octaGroup.rotation.set(0, 0, 0);
-                octaGroup.scale.set(1.4, 0.7, 1.4); // Stretched flat
+                octaGroup.scale.set(1.4, 0.7, 1.4);
                 phaseTag.innerText = "HEXAGONAL / UNSTABLE";
                 phaseTag.style.color = "#c0392b";
-                statusDesc.innerText = "A-site is too large to fit in the cavity. Leads to 2D-like hexagonal layers.";
+                statusDesc.innerText = "A-site is too large. Leads to 2D-like hexagonal layers.";
             }
         };
 
         function animate() { requestAnimationFrame(animate); renderer.render(scene, camera); }
         animate();
+
         window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+            camera.aspect = w / h;
             camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setSize(w, h);
         });
     </script>
 </body>
-
 </html>
