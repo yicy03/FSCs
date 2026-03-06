@@ -41,7 +41,7 @@
                 top: auto; bottom: 14%; left: 50%; transform: translateX(-50%); 
                 width: 85%; padding: 10px; font-size: 11px;
             }
-            #legend { top: auto; bottom: 14%; right: 5%; display: none; } /* Hide legend on small mobile to clear view */
+            #legend { display: none; }
             h1 { font-size: 16px; }
         }
     </style>
@@ -51,16 +51,16 @@
     <div id="header">
         <div class="title-group">
             <h1>Crystallization Dynamics</h1>
-            <div class="sub-title">Solvent Extraction & Self-Assembly</div>
+            <div class="sub-title">1:1 Stoichiometric Assembly</div>
         </div>
         <div class="uni-name">TSINGHUA</div>
     </div>
 
     <div id="info-card">
-        <b style="color:var(--thu-purple)">Process:</b><br>
-        1. <b>Solvation:</b> Random ions are stabilized by solvent.<br>
-        2. <b>Nucleation:</b> Solvent loss drives [PbI₆]⁴⁻ formation.<br>
-        3. <b>Assembly:</b> Octahedra link as A-site cations embed.
+        <b style="color:var(--thu-purple)">Scientific Model:</b><br>
+        • <b>Stoichiometry:</b> ABX₃ ($A:B = 1:1$)<br>
+        • <b>B-site (Pb²⁺):</b> Forms corner-sharing octahedra.<br>
+        • <b>A-site (MA⁺/Cs⁺):</b> 27 cations fitting into 27 lattice voids.
     </div>
 
     <div id="controls">
@@ -68,9 +68,9 @@
     </div>
 
     <div id="legend">
-        <div class="item"><span class="dot" style="background: #7f8c8d;"></span> Pb²⁺</div>
-        <div class="item"><span class="dot" style="background: #f1c40f;"></span> I⁻</div>
-        <div class="item"><span class="dot" style="background: #3498db;"></span> A⁺</div>
+        <div class="item"><span class="dot" style="background: #7f8c8d;"></span> Pb²⁺ (B)</div>
+        <div class="item"><span class="dot" style="background: #f1c40f;"></span> I⁻ (X)</div>
+        <div class="item"><span class="dot" style="background: #3498db;"></span> A⁺ (A)</div>
         <div class="item"><span class="dot" style="background: #a29bfe; opacity:0.6;"></span> Solvent</div>
     </div>
 
@@ -114,41 +114,44 @@
 
             const spacing = 2.6;
 
+            // Generate matched 3x3x3 system (27 B-sites and 27 A-sites)
             for (let x = -1; x <= 1; x++) {
                 for (let y = -1; y <= 1; y++) {
                     for (let z = -1; z <= 1; z++) {
+                        // 1. Pb Atoms (B-site)
                         const lead = new THREE.Mesh(leadGeom, leadMat);
-                        lead.position.set((Math.random()-0.5)*12, (Math.random()-0.5)*12, (Math.random()-0.5)*12);
+                        lead.position.set((Math.random()-0.5)*15, (Math.random()-0.5)*15, (Math.random()-0.5)*15);
                         lead.userData.target = new THREE.Vector3(x*spacing, y*spacing, z*spacing);
                         group.add(lead);
                         leadAtoms.push(lead);
 
+                        // 2. I Atoms (X-site) - 6 per lead
                         const i_offs = [[1.3,0,0],[-1.3,0,0],[0,1.3,0],[0,-1.3,0],[0,0,1.3],[0,0,-1.3]];
                         i_offs.forEach(off => {
                             const i = new THREE.Mesh(iodideGeom, iodideMat);
-                            i.position.copy(lead.position).add(new THREE.Vector3((Math.random()-0.5)*2, (Math.random()-0.5)*2, (Math.random()-0.5)*2));
+                            i.position.copy(lead.position).add(new THREE.Vector3((Math.random()-0.5)*3, (Math.random()-0.5)*3, (Math.random()-0.5)*3));
                             i.userData.parent = lead;
                             i.userData.offset = new THREE.Vector3(off[0], off[1], off[2]);
                             group.add(i);
                             iodideAtoms.push(i);
                         });
 
-                        if (x < 1 && y < 1 && z < 1) {
-                            const c = new THREE.Mesh(cationGeom, cationMat);
-                            c.position.set((Math.random()-0.5)*15, (Math.random()-0.5)*15, (Math.random()-0.5)*15);
-                            c.userData.target = new THREE.Vector3((x+0.5)*spacing, (y+0.5)*spacing, (z+0.5)*spacing);
-                            c.material.transparent = true;
-                            c.material.opacity = 0.2;
-                            group.add(c);
-                            cationAtoms.push(c);
-                        }
+                        // 3. A-site Cations (1:1 matching)
+                        const c = new THREE.Mesh(cationGeom, cationMat);
+                        c.position.set((Math.random()-0.5)*18, (Math.random()-0.5)*18, (Math.random()-0.5)*18);
+                        // Target is the void center (offset by half spacing)
+                        c.userData.target = new THREE.Vector3((x+0.5)*spacing, (y+0.5)*spacing, (z+0.5)*spacing);
+                        c.material.transparent = true;
+                        c.material.opacity = 0.2;
+                        group.add(c);
+                        cationAtoms.push(c);
                     }
                 }
             }
 
             for (let i = 0; i < 120; i++) {
                 const s = new THREE.Mesh(solventGeom, solventMat);
-                s.position.set((Math.random()-0.5)*14, (Math.random()-0.5)*14, (Math.random()-0.5)*14);
+                s.position.set((Math.random()-0.5)*16, (Math.random()-0.5)*16, (Math.random()-0.5)*16);
                 group.add(s);
                 solventMols.push(s);
             }
@@ -156,13 +159,8 @@
 
         function updateCameraPosition() {
             const isMobile = window.innerWidth < 600;
-            if (isMobile) {
-                camera.position.set(16, 14, 20); // Move further back on mobile
-                group?.position.set(0, 2, 0);    // Shift atoms upward to avoid card
-            } else {
-                camera.position.set(12, 10, 15);
-                group?.position.set(0, 0, 0);
-            }
+            camera.position.set(15, 12, 18);
+            if (isMobile) group?.position.set(0, 2, 0);
             camera.lookAt(0, isMobile ? 2 : 0, 0);
         }
 
@@ -188,7 +186,7 @@
                     });
                 });
                 cationAtoms.forEach(c => {
-                    gsap.to(c.position, { x: c.userData.target.x, y: c.userData.target.y, z: c.userData.target.z, duration: 2, delay: 0.8, ease: "back.out(1.4)" });
+                    gsap.to(c.position, { x: c.userData.target.x, y: c.userData.target.y, z: c.userData.target.z, duration: 2, delay: 0.5, ease: "back.out(1.5)" });
                     gsap.to(c.material, { opacity: 0.9, duration: 1 });
                 });
             } else {
@@ -202,8 +200,8 @@
             if (!isCrystallized) {
                 const time = Date.now() * 0.0008;
                 [...leadAtoms, ...cationAtoms].forEach((obj, idx) => {
-                    obj.position.x += Math.sin(time + idx) * 0.004;
-                    obj.position.y += Math.cos(time + idx) * 0.004;
+                    obj.position.x += Math.sin(time + idx) * 0.005;
+                    obj.position.y += Math.cos(time + idx) * 0.005;
                 });
             }
             renderer.render(scene, camera);
