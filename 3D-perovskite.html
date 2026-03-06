@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Tsinghua University | Perovskite 3D Builder</title>
+    <title>Tsinghua University | Perovskite 3D Builder (Corrected)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <style>
         :root { --ts-purple: #612c82; --panel-bg: rgba(255, 255, 255, 0.98); }
         body { margin: 0; overflow: hidden; font-family: 'Segoe UI', system-ui, sans-serif; background: #000; color: white; height: 100vh; display: flex; flex-direction: column; }
         
-        /* 头部：针对移动端大幅缩小 */
         #header {
             position: absolute; top: 0; width: 100%; text-align: center; 
             padding: 10px 0; pointer-events: none; z-index: 20;
@@ -19,47 +18,29 @@
         #header h1 { font-family: "Times New Roman", serif; font-size: 1.4rem; margin: 0; color: #fff; }
         #header p { margin: 2px 0; font-size: 0.6rem; letter-spacing: 1px; color: #ccc; }
 
-        /* 3D 容器 */
         #canvas-container { flex: 1; width: 100%; position: relative; }
 
-        /* 面板基础样式 */
         .panel {
             background: var(--panel-bg); color: #333;
             border-radius: 12px; box-shadow: 0 -4px 15px rgba(0,0,0,0.3);
             z-index: 10; padding: 15px;
         }
 
-        /* 桌面端布局：悬浮两侧 */
         @media (min-width: 769px) {
             .panel { position: absolute; top: 80px; width: 220px; }
             #controls { left: 20px; }
             #info { right: 20px; }
         }
 
-        /* 移动端布局：固定在底部，平铺不遮挡 */
         @media (max-width: 768px) {
             #header h1 { font-size: 1.1rem; }
-            
             #ui-wrapper {
-                display: flex;
-                flex-direction: row;
-                gap: 10px;
-                padding: 10px;
-                background: #1a1a1a; /* 底部工具栏背景 */
-                height: 35vh; /* 占用底部 35% 的高度 */
-                overflow-y: auto;
+                display: flex; flex-direction: row; gap: 10px; padding: 10px;
+                background: #1a1a1a; height: 35vh; overflow-y: auto;
             }
-            .panel {
-                position: static !important;
-                flex: 1;
-                height: auto;
-                padding: 10px;
-                font-size: 0.75rem;
-                border-radius: 8px;
-            }
+            .panel { position: static !important; flex: 1; height: auto; padding: 10px; font-size: 0.75rem; border-radius: 8px; }
             h3 { font-size: 0.85rem !important; margin-bottom: 5px !important; }
             .btn { padding: 6px !important; margin: 5px 0 !important; font-size: 0.7rem !important; }
-            .slider-group { margin: 5px 0 !important; }
         }
 
         h3 { margin: 0 0 10px 0; color: var(--ts-purple); border-bottom: 2px solid #eee; padding-bottom: 5px; }
@@ -73,7 +54,6 @@
             border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s;
         }
         .btn.active { background: #333; }
-
         .stat-item { display: flex; justify-content: space-between; margin: 3px 0; font-family: monospace; }
         hr { border: 0; border-top: 1px solid #ddd; margin: 8px 0; }
     </style>
@@ -82,7 +62,7 @@
 
     <div id="header">
         <h1>TSINGHUA UNIVERSITY</h1>
-        <p>Perovskite 3D Network Analysis</p>
+        <p>Perovskite ABX₃ Structure (Corrected)</p>
     </div>
 
     <div id="canvas-container"></div>
@@ -112,7 +92,7 @@
             <div class="stat-item">B (Pb²⁺): <span id="countB" style="color:#7f8c8d">8</span></div>
             <div class="stat-item">X (I⁻): <span id="countX" style="color:#9b59b6">24</span></div>
             <hr>
-            <p style="font-size:0.65rem; color:#888; margin:0;">Note: Surface atoms are not fully coordinated in finite cells.</p>
+            <p style="font-size:0.65rem; color:#888; margin:0;">Note: B (Gray) is now at center. A (Gold) is at corners.</p>
         </div>
     </div>
 
@@ -153,24 +133,33 @@
             const cellGroup = new THREE.Group();
             cellGroup.userData = { xOffset, yOffset, zOffset };
 
+            // 晶胞边框
             const boxGeom = new THREE.BoxGeometry(unitSize, unitSize, unitSize);
             const edges = new THREE.EdgesGeometry(boxGeom);
             cellGroup.add(new THREE.LineSegments(edges, matWire));
 
-            const b = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16), matB);
-            b.position.set(-unitSize/2, -unitSize/2, -unitSize/2);
+            // --- 修正后的原子排布 ---
+            
+            // 1. B 位 (Pb2+): 位于立方体中心 (0,0,0)
+            const b = new THREE.Mesh(new THREE.SphereGeometry(0.45, 16, 16), matB);
+            b.position.set(0, 0, 0);
             cellGroup.add(b);
 
+            // 2. A 位 (MA+): 位于立方体顶点
+            // 为了视觉清晰，每个晶胞只在 (-unitSize/2, -unitSize/2, -unitSize/2) 放置一个
             const a = new THREE.Mesh(new THREE.SphereGeometry(0.85, 16, 16), matA);
-            a.position.set(0, 0, 0);
+            a.position.set(-unitSize/2, -unitSize/2, -unitSize/2);
             cellGroup.add(a);
 
-            [[-1,0,0], [0,-1,0], [0,0,-1]].forEach(p => {
-                const x = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 16), matX);
-                x.position.set(p[0]*unitSize/2, p[1]*unitSize/2, p[2]*unitSize/2);
+            // 3. X 位 (I-): 位于面心（B-B连接处）
+            // 在以 B 为中心的局部坐标系中，X 位于轴向的 unitSize/2 处
+            [[unitSize/2, 0, 0], [0, unitSize/2, 0], [0, 0, unitSize/2]].forEach(p => {
+                const x = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16), matX);
+                x.position.set(p[0], p[1], p[2]);
                 cellGroup.add(x);
             });
 
+            // 4. 八面体: 正确包裹中心 B 原子
             const octaMesh = new THREE.Mesh(new THREE.OctahedronGeometry(unitSize/2), matOcta);
             octaMesh.name = "octa";
             octaMesh.visible = (viewMode === 'polyhedra');
@@ -196,9 +185,10 @@
         }
 
         function updateStats() {
-            document.getElementById('countA').innerText = gridX * gridY * gridZ;
-            document.getElementById('countB').innerText = gridX * gridY * gridZ;
-            document.getElementById('countX').innerText = (gridX * gridY * gridZ) * 3;
+            const totalCells = gridX * gridY * gridZ;
+            document.getElementById('countA').innerText = totalCells;
+            document.getElementById('countB').innerText = totalCells;
+            document.getElementById('countX').innerText = totalCells * 3;
         }
 
         const syncGrid = (axis, val) => {
