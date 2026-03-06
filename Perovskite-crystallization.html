@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Perovskite Solvation & Crystallization - Tsinghua University</title>
+    <style>
+        :root { --thu-purple: #660874; }
+        body { margin: 0; background-color: #f4f6f8; color: #333; font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden; touch-action: manipulation; }
+        
+        #header { position: absolute; top: 4%; left: 5%; right: 5%; z-index: 10; display: flex; justify-content: space-between; pointer-events: none; }
+        .title-group { border-left: 4px solid var(--thu-purple); padding-left: 12px; }
+        h1 { margin: 0; color: var(--thu-purple); font-size: clamp(16px, 4vw, 22px); letter-spacing: -0.5px; }
+        .sub-title { font-size: clamp(10px, 2.5vw, 12px); color: #666; font-weight: 600; text-transform: uppercase; }
+        .uni-name { font-weight: 800; font-size: clamp(14px, 4vw, 18px); color: var(--thu-purple); }
+
+        #info-card { 
+            position: absolute; top: 15%; left: 5%; width: clamp(250px, 85%, 320px); 
+            background: rgba(255,255,255,0.9); padding: 15px; border-radius: 10px; 
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1); border: 1px solid rgba(102, 8, 116, 0.1);
+            backdrop-filter: blur(8px); z-index: 5; font-size: 13px; line-height: 1.5;
+        }
+
+        #controls { position: absolute; bottom: 8%; left: 50%; transform: translateX(-50%); z-index: 20; }
+        button { 
+            padding: 16px 36px; font-size: 14px; cursor: pointer; background: var(--thu-purple); 
+            border: none; color: white; border-radius: 50px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 1px; transition: 0.3s;
+            box-shadow: 0 10px 20px rgba(102, 8, 116, 0.2); -webkit-tap-highlight-color: transparent;
+        }
+        button:hover { transform: scale(1.05); background: #550660; }
+
+        #legend { 
+            position: absolute; bottom: 4%; right: 5%; background: rgba(255,255,255,0.9); 
+            padding: 10px; border-radius: 8px; font-size: 11px; border: 1px solid #ddd;
+        }
+        .item { display: flex; align-items: center; margin-bottom: 4px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; }
+
+        @media (max-width: 600px) {
+            #info-card { top: auto; bottom: 20%; left: 50%; transform: translateX(-50%); width: 85%; }
+            #legend { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="header">
+        <div class="title-group">
+            <h1>Crystallization Dynamics</h1>
+            <div class="sub-title">Solvent Extraction & Self-Assembly</div>
+        </div>
+        <div class="uni-name">TSINGHUA UNIVERSITY</div>
+    </div>
+
+    <div id="info-card">
+        <b style="color:var(--thu-purple)">Scientific Process:</b><br>
+        1. <b>Solution State:</b> Randomly distributed ions are solvated by organic molecules (purple clusters).<br>
+        2. <b>Nucleation:</b> As solvent evaporates, chemical potential drives ions to form coordinated [PbI₆]⁴⁻ octahedra.<br>
+        3. <b>Lattice Formation:</b> Octahedra connect via corner-sharing, with A-site cations filling the voids.
+    </div>
+
+    <div id="controls">
+        <button id="actionBtn" onclick="toggleCrystallization()">Initiate Crystallization</button>
+    </div>
+
+    <div id="legend">
+        <div class="item"><span class="dot" style="background: #7f8c8d;"></span> Lead (Pb²⁺)</div>
+        <div class="item"><span class="dot" style="background: #f1c40f;"></span> Iodide (I⁻)</div>
+        <div class="item"><span class="dot" style="background: #3498db;"></span> Organic Cation (A⁺)</div>
+        <div class="item"><span class="dot" style="background: #a29bfe; opacity:0.6;"></span> Solvent (DMF/DMSO)</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+
+    <script>
+        let scene, camera, renderer, group;
+        let leadAtoms = [], iodideAtoms = [], cationAtoms = [], solventMols = [];
+        let isCrystallized = false;
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xf4f6f8);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.body.appendChild(renderer.domElement);
+
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(12, 10, 15);
+            camera.lookAt(0, 0, 0);
+
+            group = new THREE.Group();
+            scene.add(group);
+
+            scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+            const light = new THREE.DirectionalLight(0xffffff, 0.5);
+            light.position.set(10, 20, 10);
+            scene.add(light);
+
+            // Geometries
+            const leadGeom = new THREE.SphereBufferGeometry(0.35, 32, 32);
+            const iodideGeom = new THREE.SphereBufferGeometry(0.2, 32, 32);
+            const cationGeom = new THREE.SphereBufferGeometry(0.5, 32, 32);
+            const solventGeom = new THREE.SphereBufferGeometry(0.12, 8, 8);
+
+            // Materials
+            const leadMat = new THREE.MeshPhongMaterial({ color: 0x7f8c8d });
+            const iodideMat = new THREE.MeshPhongMaterial({ color: 0xf1c40f });
+            const cationMat = new THREE.MeshPhongMaterial({ color: 0x3498db });
+            const solventMat = new THREE.MeshPhongMaterial({ color: 0xa29bfe, transparent: true, opacity: 0.6 });
+
+            const spacing = 2.6;
+
+            // Generate Ions (Random Initial Positions)
+            for (let x = -1; x <= 1; x++) {
+                for (let y = -1; y <= 1; y++) {
+                    for (let z = -1; z <= 1; z++) {
+                        // Pb Center
+                        const lead = new THREE.Mesh(leadGeom, leadMat);
+                        lead.position.set((Math.random()-0.5)*15, (Math.random()-0.5)*15, (Math.random()-0.5)*15);
+                        lead.userData.target = new THREE.Vector3(x*spacing, y*spacing, z*spacing);
+                        group.add(lead);
+                        leadAtoms.push(lead);
+
+                        // 6 Iodides for Octahedron
+                        const i_offs = [[1.3,0,0],[-1.3,0,0],[0,1.3,0],[0,-1.3,0],[0,0,1.3],[0,0,-1.3]];
+                        i_offs.forEach(off => {
+                            const i = new THREE.Mesh(iodideGeom, iodideMat);
+                            i.position.copy(lead.position).add(new THREE.Vector3((Math.random()-0.5)*3, (Math.random()-0.5)*3, (Math.random()-0.5)*3));
+                            i.userData.parent = lead;
+                            i.userData.offset = new THREE.Vector3(off[0], off[1], off[2]);
+                            group.add(i);
+                            iodideAtoms.push(i);
+                        });
+
+                        // Cations (A-site)
+                        if (x < 1 && y < 1 && z < 1) {
+                            const c = new THREE.Mesh(cationGeom, cationMat);
+                            c.position.set((Math.random()-0.5)*18, (Math.random()-0.5)*18, (Math.random()-0.5)*18);
+                            c.userData.target = new THREE.Vector3((x+0.5)*spacing, (y+0.5)*spacing, (z+0.5)*spacing);
+                            c.material.transparent = true;
+                            c.material.opacity = 0.3; // Less visible in solution
+                            group.add(c);
+                            cationAtoms.push(c);
+                        }
+                    }
+                }
+            }
+
+            // Generate Solvent Matrix
+            for (let i = 0; i < 150; i++) {
+                const s = new THREE.Mesh(solventGeom, solventMat);
+                s.position.set((Math.random()-0.5)*16, (Math.random()-0.5)*16, (Math.random()-0.5)*16);
+                group.add(s);
+                solventMols.push(s);
+            }
+        }
+
+        function toggleCrystallization() {
+            isCrystallized = !isCrystallized;
+            const btn = document.getElementById('actionBtn');
+            
+            if (isCrystallized) {
+                btn.innerText = "Re-dissolve";
+                
+                // 1. Solvent removal
+                solventMols.forEach(s => {
+                    gsap.to(s.position, { x: s.position.x*4, y: s.position.y*4, z: s.position.z*4, duration: 2, ease: "power2.in" });
+                    gsap.to(s.material, { opacity: 0, duration: 1 });
+                });
+
+                // 2. Ion Assembly
+                leadAtoms.forEach(l => {
+                    gsap.to(l.position, { x: l.userData.target.x, y: l.userData.target.y, z: l.userData.target.z, duration: 3, ease: "expo.inOut", delay: 0.3 });
+                });
+                iodideAtoms.forEach(i => {
+                    gsap.to(i.position, { 
+                        x: i.userData.parent.userData.target.x + i.userData.offset.x, 
+                        y: i.userData.parent.userData.target.y + i.userData.offset.y, 
+                        z: i.userData.parent.userData.target.z + i.userData.offset.z, 
+                        duration: 3, ease: "expo.inOut", delay: 0.3 
+                    });
+                });
+                cationAtoms.forEach(c => {
+                    gsap.to(c.position, { x: c.userData.target.x, y: c.userData.target.y, z: c.userData.target.z, duration: 2.5, delay: 1.2, ease: "back.out(1.2)" });
+                    gsap.to(c.material, { opacity: 0.9, duration: 1.5, delay: 1.2 });
+                });
+
+            } else {
+                location.reload();
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            group.rotation.y += 0.002;
+            
+            // Simulation of Brownian motion in solution
+            if (!isCrystallized) {
+                const time = Date.now() * 0.001;
+                [...leadAtoms, ...cationAtoms, ...solventMols].forEach((obj, idx) => {
+                    obj.position.x += Math.sin(time + idx) * 0.005;
+                    obj.position.y += Math.cos(time + idx) * 0.005;
+                });
+            }
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+        });
+
+        init();
+        animate();
+    </script>
+</body>
+</html>
