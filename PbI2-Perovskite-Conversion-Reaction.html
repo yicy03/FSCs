@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PbI2 + MAI Conversion - Tsinghua University</title>
+    <title>PbI2 to Perovskite Conversion - Tsinghua University</title>
     <style>
         :root { --thu-purple: #660874; }
         body { margin: 0; background-color: #f4f7f9; color: #333; font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden; touch-action: manipulation; }
@@ -12,7 +12,7 @@
         .title-group { border-left: 4px solid var(--thu-purple); padding-left: 12px; }
         h1 { margin: 0; color: var(--thu-purple); font-size: clamp(14px, 4vw, 22px); letter-spacing: -0.5px; }
         .sub-title { font-size: clamp(9px, 2vw, 11px); color: #666; font-weight: 600; text-transform: uppercase; }
-        .uni-name { font-weight: 800; font-size: clamp(12px, 3.5vw, 16px); color: var(--thu-purple); }
+        .uni-name { font-weight: 800; font-size: clamp(10px, 3vw, 14px); color: var(--thu-purple); }
 
         #info-card { 
             position: absolute; top: 12%; left: 5%; width: clamp(240px, 80%, 320px); 
@@ -48,17 +48,17 @@
 
     <div id="header">
         <div class="title-group">
-            <h1>Conversion Stoichiometry</h1>
-            <div class="sub-title">Intercalation of MA+ and I- Ions</div>
+            <h1>Structural Transformation</h1>
+            <div class="sub-title">From Layered PbI2 to 3D Perovskite</div>
         </div>
-        <div class="uni-name">TSINGHUA</div>
+        <div class="uni-name">TSINGHUA UNIVERSITY</div>
     </div>
 
     <div id="info-card">
-        <b style="color:var(--thu-purple)">Stoichiometric Mechanism:</b><br>
-        1. <b>Precursor:</b> Layered PbI2 (CdI2-type).<br>
-        2. <b>Intercalation:</b> <b>A-site cations</b> and <b>Iodides</b> enter van der Waals gaps.<br>
-        3. <b>Reorganization:</b> Layers convert into a 3D corner-sharing framework.
+        <b style="color:var(--thu-purple)">Phase Conversion Mechanism:</b><br>
+        1. <b>Initial State:</b> Layered PbI2 (CdI2-type structure) with van der Waals gaps.<br>
+        2. <b>Intercalation:</b> Organic cations (A-site) and iodides (I-ions) diffuse into the layers.<br>
+        3. <b>Reorganization:</b> The edge-sharing [PbI6] octahedra transition to a 3D corner-sharing framework.
     </div>
 
     <div id="controls">
@@ -66,9 +66,9 @@
     </div>
 
     <div id="legend">
-        <div class="item"><span class="dot" style="background: #7f8c8d;"></span> Lead (Pb2+)</div>
-        <div class="item"><span class="dot" style="background: #f1c40f;"></span> Iodide (I-)</div>
-        <div class="item"><span class="dot" style="background: #3498db;"></span> Organic Cation (A+)</div>
+        <div class="item"><span class="dot" style="background: #7f8c8d;"></span> Lead (Pb2+) - 18 Units</div>
+        <div class="item"><span class="dot" style="background: #f1c40f;"></span> Iodide (I-) - Inorganic Frame</div>
+        <div class="item"><span class="dot" style="background: #3498db;"></span> Organic Cation (A+) - 18 Units</div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -90,14 +90,10 @@
             document.body.appendChild(renderer.domElement);
 
             camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
-            
-            // 手机端适配：提升模型高度
             const isMobile = window.innerWidth < 600;
-            const camDist = isMobile ? 18 : 15;
-            camera.position.set(12, 10, camDist);
+            camera.position.set(12, 10, isMobile ? 18 : 15);
             
             group = new THREE.Group();
-            // 手机端将中心点上移 1.5 单位，避开底部 UI
             group.position.y = isMobile ? 1.5 : 0; 
             scene.add(group);
 
@@ -132,6 +128,20 @@
                         group.add(lead);
                         leadAtoms.push(lead);
 
+                        const c = new THREE.Mesh(cationGeom, cationMat);
+                        c.position.set(
+                            x * LATTICE + (Math.random() - 0.5) * 3, 
+                            12 + (Math.random() * 4), 
+                            y * LATTICE + (Math.random() - 0.5) * 3
+                        );
+                        c.userData.target = new THREE.Vector3(
+                            x * LATTICE + 1.3, 
+                            y * LATTICE + 1.3, 
+                            z * LATTICE + 1.3
+                        );
+                        group.add(c);
+                        cationAtoms.push(c);
+
                         p_offsets.forEach((off, idx) => {
                             const iodide = new THREE.Mesh(iGeom, iMat);
                             if (idx >= 4) {
@@ -151,18 +161,6 @@
                     }
                 }
             }
-
-            for (let x = -0.5; x <= 0.5; x++) {
-                for (let y = -0.5; y <= 0.5; y++) {
-                    for (let z = -0.5; z <= 0.5; z++) {
-                        const c = new THREE.Mesh(cationGeom, cationMat);
-                        c.position.set(x * LATTICE, 15, y * LATTICE);
-                        c.userData.target = new THREE.Vector3(x * LATTICE + 1.3, y * LATTICE + 1.3, z * LATTICE + 1.3);
-                        group.add(c);
-                        cationAtoms.push(c);
-                    }
-                }
-            }
         }
 
         function triggerConversion() {
@@ -170,10 +168,12 @@
             const btn = document.getElementById('actionBtn');
             
             if (isPerovskite) {
-                btn.innerText = "Reset System";
+                btn.innerText = "Revert to PbI2";
+                
                 leadAtoms.forEach(l => {
                     gsap.to(l.position, { x: l.userData.p_target.x, y: l.userData.p_target.y, z: l.userData.p_target.z, duration: 2.5, ease: "expo.inOut" });
                 });
+
                 iodideAtoms.forEach(i => {
                     gsap.to(i.position, { 
                         x: i.userData.parent.userData.p_target.x + i.userData.p_offset.x, 
@@ -183,8 +183,16 @@
                     });
                     if (i.material.opacity === 0) gsap.to(i.material, { opacity: 1, duration: 1, delay: 0.5 });
                 });
+
                 cationAtoms.forEach(c => {
-                    gsap.to(c.position, { x: c.userData.target.x - 1.3, y: c.userData.target.y - 1.3, z: c.userData.target.z - 1.3, duration: 2, delay: 0.8, ease: "back.out(1.2)" });
+                    gsap.to(c.position, { 
+                        x: c.userData.target.x, 
+                        y: c.userData.target.y, 
+                        z: c.userData.target.z, 
+                        duration: 2.2, 
+                        delay: 0.8, 
+                        ease: "back.out(1.2)" 
+                    });
                     gsap.to(c.material, { opacity: 0.9, duration: 1.5, delay: 0.8 });
                 });
             } else {
